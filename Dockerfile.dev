@@ -1,0 +1,31 @@
+# Development Dockerfile for frontend
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable
+RUN corepack prepare pnpm@10.18.2 --activate
+
+# Copy package files
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+# Copy all the app directories
+COPY apps ./apps
+COPY packages ./packages
+COPY tooling ./tooling
+COPY turbo.json ./
+COPY tsconfig.json ./
+
+# Install dependencies
+RUN pnpm install
+
+# Set environment variables
+ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV development
+
+EXPOSE 3000
+
+# Start the dev server
+WORKDIR /app/apps/web
+CMD ["pnpm", "run", "with-env", "next", "dev"]

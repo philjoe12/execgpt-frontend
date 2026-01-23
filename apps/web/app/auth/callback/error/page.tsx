@@ -1,8 +1,5 @@
 import Link from 'next/link';
 
-import type { AuthError } from '@supabase/supabase-js';
-
-import { ResendAuthLinkForm } from '@kit/auth/resend-email-link';
 import { Alert, AlertDescription, AlertTitle } from '@kit/ui/alert';
 import { Button } from '@kit/ui/button';
 import { Trans } from '@kit/ui/trans';
@@ -15,7 +12,7 @@ interface AuthCallbackErrorPageProps {
     error: string;
     callback?: string;
     email?: string;
-    code?: AuthError['code'];
+    code?: string;
   }>;
 }
 
@@ -36,26 +33,9 @@ async function AuthCallbackErrorPage(props: AuthCallbackErrorPageProps) {
         </AlertDescription>
       </Alert>
 
-      <AuthCallbackForm
-        code={code}
-        signInPath={signInPath}
-        redirectPath={redirectPath}
-      />
+      <SignInButton signInPath={signInPath} />
     </div>
   );
-}
-
-function AuthCallbackForm(props: {
-  signInPath: string;
-  redirectPath?: string;
-  code?: AuthError['code'];
-}) {
-  switch (props.code) {
-    case 'otp_expired':
-      return <ResendAuthLinkForm redirectPath={props.redirectPath} />;
-    default:
-      return <SignInButton signInPath={props.signInPath} />;
-  }
 }
 
 function SignInButton(props: { signInPath: string }) {

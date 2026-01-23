@@ -1,11 +1,6 @@
-import Link from 'next/link';
-
-import { PasswordResetRequestContainer } from '@kit/auth/password-reset';
-import { Button } from '@kit/ui/button';
 import { Heading } from '@kit/ui/heading';
 import { Trans } from '@kit/ui/trans';
 
-import pathsConfig from '~/config/paths.config';
 import { createI18nServerInstance } from '~/lib/i18n/i18n.server';
 import { withI18n } from '~/lib/i18n/with-i18n';
 
@@ -17,9 +12,6 @@ export const generateMetadata = async () => {
   };
 };
 
-const { callback, passwordUpdate, signIn } = pathsConfig.auth;
-const redirectPath = `${callback}?next=${passwordUpdate}`;
-
 function PasswordResetPage() {
   return (
     <>
@@ -27,17 +19,10 @@ function PasswordResetPage() {
         <Trans i18nKey={'auth:passwordResetLabel'} />
       </Heading>
 
-      <div className={'flex flex-col space-y-4'}>
-        <PasswordResetRequestContainer redirectPath={redirectPath} />
-
-        <div className={'flex justify-center text-xs'}>
-          <Button asChild variant={'link'} size={'sm'}>
-            <Link href={signIn}>
-              <Trans i18nKey={'auth:passwordRecoveredQuestion'} />
-            </Link>
-          </Button>
-        </div>
-      </div>
+      <p className={'text-sm text-muted-foreground'}>
+        Password reset is handled by ExecGPT support. Reach out to your admin
+        or support team to reset your password.
+      </p>
     </>
   );
 }

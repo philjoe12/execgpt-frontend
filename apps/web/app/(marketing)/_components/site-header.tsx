@@ -1,4 +1,4 @@
-import type { JwtPayload } from '@supabase/supabase-js';
+import type { ExecgptUser } from '~/lib/auth/types';
 
 import { Header } from '@kit/ui/marketing';
 
@@ -7,7 +7,7 @@ import { AppLogo } from '~/components/app-logo';
 import { SiteHeaderAccountSection } from './site-header-account-section';
 import { SiteNavigation } from './site-navigation';
 
-export function SiteHeader(props: { user?: JwtPayload | null }) {
+export function SiteHeader(props: { user?: ExecgptUser | null }) {
   return (
     <Header
       logo={<AppLogo />}

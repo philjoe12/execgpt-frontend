@@ -3,17 +3,14 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 
-import type { JwtPayload } from '@supabase/supabase-js';
-
-import { PersonalAccountDropdown } from '@kit/accounts/personal-account-dropdown';
-import { useSignOut } from '@kit/supabase/hooks/use-sign-out';
-import { useUser } from '@kit/supabase/hooks/use-user';
 import { Button } from '@kit/ui/button';
 import { If } from '@kit/ui/if';
 import { Trans } from '@kit/ui/trans';
 
 import featuresFlagConfig from '~/config/feature-flags.config';
 import pathsConfig from '~/config/paths.config';
+import type { ExecgptUser } from '~/lib/auth/types';
+import { ProfileAccountDropdownContainer } from '~/components/personal-account-dropdown-container';
 
 const ModeToggle = dynamic(
   () =>
@@ -25,10 +22,6 @@ const ModeToggle = dynamic(
   },
 );
 
-const paths = {
-  home: pathsConfig.app.home,
-};
-
 const features = {
   enableThemeToggle: featuresFlagConfig.enableThemeToggle,
 };
@@ -36,33 +29,15 @@ const features = {
 export function SiteHeaderAccountSection({
   user,
 }: React.PropsWithChildren<{
-  user: JwtPayload | null;
+  user: ExecgptUser | null;
 }>) {
   if (!user) {
     return <AuthButtons />;
   }
 
-  return <SuspendedPersonalAccountDropdown user={user} />;
-}
-
-function SuspendedPersonalAccountDropdown(props: { user: JwtPayload | null }) {
-  const signOut = useSignOut();
-  const user = useUser(props.user);
-  const userData = user.data ?? props.user ?? null;
-
-  if (userData) {
-    return (
-      <PersonalAccountDropdown
-        showProfileName={false}
-        paths={paths}
-        features={features}
-        user={userData}
-        signOutRequested={() => signOut.mutateAsync()}
-      />
-    );
-  }
-
-  return <AuthButtons />;
+  return (
+    <ProfileAccountDropdownContainer user={user} showProfileName={false} />
+  );
 }
 
 function AuthButtons() {

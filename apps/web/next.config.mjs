@@ -1,5 +1,4 @@
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ENABLE_REACT_COMPILER = process.env.ENABLE_REACT_COMPILER === 'true';
 
 const INTERNAL_PACKAGES = [
@@ -7,14 +6,16 @@ const INTERNAL_PACKAGES = [
   '@kit/auth',
   '@kit/accounts',
   '@kit/shared',
-  '@kit/supabase',
   '@kit/i18n',
   '@kit/next',
 ];
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://api.execgpt.com';
+
 /** @type {import('next').NextConfig} */
 const config = {
   reactStrictMode: true,
+  output: 'standalone',
   /** Enables hot reloading for local packages without a build step */
   transpilePackages: INTERNAL_PACKAGES,
   images: {
@@ -54,22 +55,34 @@ const config = {
   /** We already do linting and typechecking as separate tasks in CI */
   eslint: { ignoreDuringBuilds: true },
   typescript: { ignoreBuildErrors: true },
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: `${API_BASE_URL}/api/v1/:path*`,
+      },
+    ];
+  },
 };
 
 export default config;
 
 function getRemotePatterns() {
   /** @type {import('next').NextConfig['remotePatterns']} */
-  const remotePatterns = [];
-
-  if (SUPABASE_URL) {
-    const hostname = new URL(SUPABASE_URL).hostname;
-
-    remotePatterns.push({
+  const remotePatterns = [
+    {
       protocol: 'https',
-      hostname,
-    });
-  }
+      hostname: 'cms.execgpt.com',
+    },
+    {
+      protocol: 'http',
+      hostname: 'cms.execgpt.com',
+    },
+    {
+      protocol: 'https',
+      hostname: 'cloud.bluebear.ai',
+    },
+  ];
 
   return IS_PRODUCTION
     ? remotePatterns

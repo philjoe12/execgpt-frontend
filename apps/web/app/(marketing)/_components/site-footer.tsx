@@ -7,7 +7,7 @@ import appConfig from '~/config/app.config';
 export function SiteFooter() {
   return (
     <Footer
-      logo={<AppLogo className="w-[85px] md:w-[95px]" />}
+      logo={<AppLogo className="w-[85px] md:w-[95px]" logoSrc="/images/iconforurl.png" />}
       description={<Trans i18nKey="marketing:footerDescription" />}
       copyright={
         <Trans

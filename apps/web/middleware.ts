@@ -3,11 +3,9 @@ import { NextResponse, URLPattern } from 'next/server';
 
 import { CsrfError, createCsrfProtect } from '@edge-csrf/nextjs';
 
-import { checkRequiresMultiFactorAuthentication } from '@kit/supabase/check-requires-mfa';
-import { createMiddlewareClient } from '@kit/supabase/middleware-client';
-
 import appConfig from '~/config/app.config';
 import pathsConfig from '~/config/paths.config';
+import { AUTH_COOKIE_NAME, DEFAULT_AUTH_API_BASE } from '~/lib/auth/constants';
 
 const CSRF_SECRET_COOKIE = 'csrfSecret';
 const NEXT_ACTION_HEADER = 'next-action';
@@ -16,10 +14,35 @@ export const config = {
   matcher: ['/((?!_next/static|_next/image|images|locales|assets|api/*).*)'],
 };
 
-const getUser = (request: NextRequest, response: NextResponse) => {
-  const supabase = createMiddlewareClient(request, response);
+const getUser = async (request: NextRequest) => {
+  const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
-  return supabase.auth.getClaims();
+  if (!token) {
+    return null;
+  }
+
+  const apiBase =
+    process.env.AUTH_API_BASE_INTERNAL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    DEFAULT_AUTH_API_BASE;
+
+  try {
+    const response = await fetch(`${apiBase}/api/v1/auth/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const payload = (await response.json()) as { user?: unknown; data?: { user?: unknown } };
+    return payload.user ?? payload.data?.user ?? null;
+  } catch (error) {
+    return null;
+  }
 };
 
 export async function middleware(request: NextRequest) {
@@ -101,52 +124,39 @@ function getPatterns() {
   return [
     {
       pattern: new URLPattern({ pathname: '/auth/*?' }),
-      handler: async (req: NextRequest, res: NextResponse) => {
-        const { data } = await getUser(req, res);
+      handler: async (req: NextRequest) => {
+        const user = await getUser(req);
 
         // the user is logged out, so we don't need to do anything
-        if (!data?.claims) {
+        if (!user) {
           return;
         }
 
-        // check if we need to verify MFA (user is authenticated but needs to verify MFA)
-        const isVerifyMfa = req.nextUrl.pathname === pathsConfig.auth.verifyMfa;
-
         // If user is logged in and does not need to verify MFA,
         // redirect to home page.
-        if (!isVerifyMfa) {
-          return NextResponse.redirect(
-            new URL(pathsConfig.app.home, req.nextUrl.origin).href,
-          );
-        }
+        return NextResponse.redirect(
+          new URL(pathsConfig.app.home, req.nextUrl.origin).href,
+        );
       },
     },
     {
       pattern: new URLPattern({ pathname: '/home/*?' }),
-      handler: async (req: NextRequest, res: NextResponse) => {
-        const { data } = await getUser(req, res);
+      handler: async (req: NextRequest) => {
+        const user = await getUser(req);
 
         const origin = req.nextUrl.origin;
         const next = req.nextUrl.pathname;
 
         // If user is not logged in, redirect to sign in page.
-        if (!data?.claims) {
+        if (!user) {
           const signIn = pathsConfig.auth.signIn;
           const redirectPath = `${signIn}?next=${next}`;
 
-          return NextResponse.redirect(new URL(redirectPath, origin).href);
-        }
-
-        const supabase = createMiddlewareClient(req, res);
-
-        const requiresMultiFactorAuthentication =
-          await checkRequiresMultiFactorAuthentication(supabase);
-
-        // If user requires multi-factor authentication, redirect to MFA page.
-        if (requiresMultiFactorAuthentication) {
-          return NextResponse.redirect(
-            new URL(pathsConfig.auth.verifyMfa, origin).href,
+          const redirectResponse = NextResponse.redirect(
+            new URL(redirectPath, origin).href,
           );
+          redirectResponse.cookies.set(AUTH_COOKIE_NAME, '', { maxAge: 0, path: '/' });
+          return redirectResponse;
         }
       },
     },

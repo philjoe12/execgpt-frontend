@@ -1,5 +1,3 @@
-import type { JwtPayload } from '@supabase/supabase-js';
-
 import {
   Sidebar,
   SidebarContent,
@@ -11,31 +9,29 @@ import {
 import { AppLogo } from '~/components/app-logo';
 import { ProfileAccountDropdownContainer } from '~/components/personal-account-dropdown-container';
 import { navigationConfig } from '~/config/navigation.config';
-import { Tables } from '~/lib/database.types';
+import type { ExecgptUser } from '~/lib/auth/types';
 
 export function HomeSidebar(props: {
-  account?: Tables<'accounts'>;
-  user: JwtPayload;
+  user: ExecgptUser;
+  navigation: typeof navigationConfig;
+  logoSrc?: string | null;
 }) {
   return (
     <Sidebar collapsible={'icon'}>
       <SidebarHeader className={'h-16 justify-center'}>
         <div className={'flex items-center justify-between space-x-2'}>
           <div>
-            <AppLogo className={'max-w-full'} />
+            <AppLogo className={'max-w-full'} logoSrc={props.logoSrc ?? undefined} />
           </div>
         </div>
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarNavigation config={navigationConfig} />
+        <SidebarNavigation config={props.navigation} />
       </SidebarContent>
 
       <SidebarFooter>
-        <ProfileAccountDropdownContainer
-          user={props.user}
-          account={props.account}
-        />
+        <ProfileAccountDropdownContainer user={props.user} />
       </SidebarFooter>
     </Sidebar>
   );

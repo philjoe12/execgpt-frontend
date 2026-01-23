@@ -1,8 +1,4 @@
-import { redirect } from 'next/navigation';
-
-import { MultiFactorChallengeContainer } from '@kit/auth/mfa';
-import { checkRequiresMultiFactorAuthentication } from '@kit/supabase/check-requires-mfa';
-import { getSupabaseServerClient } from '@kit/supabase/server-client';
+import Link from 'next/link';
 
 import pathsConfig from '~/config/paths.config';
 import { createI18nServerInstance } from '~/lib/i18n/i18n.server';
@@ -23,30 +19,18 @@ export const generateMetadata = async () => {
 };
 
 async function VerifyPage(props: Props) {
-  const client = getSupabaseServerClient();
-
-  const { data } = await client.auth.getClaims();
-
-  if (!data?.claims) {
-    redirect(pathsConfig.auth.signIn);
-  }
-
-  const needsMfa = await checkRequiresMultiFactorAuthentication(client);
-
-  if (!needsMfa) {
-    redirect(pathsConfig.auth.signIn);
-  }
-
   const nextPath = (await props.searchParams).next;
   const redirectPath = nextPath ?? pathsConfig.app.home;
 
   return (
-    <MultiFactorChallengeContainer
-      userId={data.claims.sub}
-      paths={{
-        redirectPath,
-      }}
-    />
+    <div className={'space-y-4 text-center'}>
+      <p className={'text-sm text-muted-foreground'}>
+        Multi-factor authentication is not enabled for ExecGPT yet.
+      </p>
+      <Link className={'text-primary underline'} href={redirectPath}>
+        Continue to dashboard
+      </Link>
+    </div>
   );
 }
 

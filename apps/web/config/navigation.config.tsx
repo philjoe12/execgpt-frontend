@@ -1,4 +1,4 @@
-import { Home, User } from 'lucide-react';
+import { Home, Link, MessageCircle, Rocket, User, Users, Wand2 } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -16,6 +16,31 @@ const routes = [
         path: pathsConfig.app.home,
         Icon: <Home className={iconClasses} />,
         end: true,
+      },
+      {
+        label: 'common:routes.deployments',
+        path: pathsConfig.app.deployments,
+        Icon: <Rocket className={iconClasses} />,
+      },
+      {
+        label: 'common:routes.integrations',
+        path: pathsConfig.app.integrations,
+        Icon: <Link className={iconClasses} />,
+      },
+      {
+        label: 'common:routes.chat',
+        path: pathsConfig.app.agents,
+        Icon: <MessageCircle className={iconClasses} />,
+      },
+      {
+        label: 'common:routes.tenantWizard',
+        path: pathsConfig.app.tenantWizard,
+        Icon: <Wand2 className={iconClasses} />,
+      },
+      {
+        label: 'common:routes.customers',
+        path: pathsConfig.app.customers,
+        Icon: <Users className={iconClasses} />,
       },
     ],
   },

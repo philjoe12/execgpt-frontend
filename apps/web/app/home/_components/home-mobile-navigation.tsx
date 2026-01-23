@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import { LogOut, Menu } from 'lucide-react';
 
-import { useSignOut } from '@kit/supabase/hooks/use-sign-out';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,15 +16,20 @@ import {
 import { Trans } from '@kit/ui/trans';
 
 import { navigationConfig } from '~/config/navigation.config';
+import { clearAuthToken } from '~/lib/auth/client';
+import { filterNavigationRoutes } from '~/lib/navigation/filter-navigation';
 
 /**
  * Mobile navigation for the home page
  * @constructor
  */
-export function HomeMobileNavigation() {
-  const signOut = useSignOut();
+export function HomeMobileNavigation(props: { canManageCustomers: boolean }) {
+  const router = useRouter();
+  const routes = filterNavigationRoutes(navigationConfig.routes, {
+    canManageCustomers: props.canManageCustomers,
+  });
 
-  const Links = navigationConfig.routes.map((item, index) => {
+  const Links = routes.map((item, index) => {
     if ('children' in item) {
       return item.children.map((child) => {
         return (
@@ -54,7 +59,12 @@ export function HomeMobileNavigation() {
 
         <DropdownMenuSeparator />
 
-        <SignOutDropdownItem onSignOut={() => signOut.mutateAsync()} />
+        <SignOutDropdownItem
+          onSignOut={() => {
+            clearAuthToken();
+            router.push('/auth/sign-in');
+          }}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   );

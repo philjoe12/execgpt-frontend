@@ -1,14 +1,23 @@
 import Link from 'next/link';
 
-import { SignUpMethodsContainer } from '@kit/auth/sign-up';
-import { Button } from '@kit/ui/button';
 import { Heading } from '@kit/ui/heading';
 import { Trans } from '@kit/ui/trans';
 
-import authConfig from '~/config/auth.config';
 import pathsConfig from '~/config/paths.config';
+import { ExecgptSignUpForm } from '~/auth/_components/execgpt-sign-up-form';
 import { createI18nServerInstance } from '~/lib/i18n/i18n.server';
 import { withI18n } from '~/lib/i18n/with-i18n';
+import { fetchMarketingContent } from '~/lib/strapi/fetch-marketing-content';
+
+type WaitlistConfig = {
+  smsOptInEnabled?: boolean;
+  smsOptInLabel?: string;
+  smsOptInPlaceholder?: string;
+};
+
+type MarketingContent = {
+  waitlist?: WaitlistConfig;
+};
 
 export const generateMetadata = async () => {
   const i18n = await createI18nServerInstance();
@@ -18,30 +27,38 @@ export const generateMetadata = async () => {
   };
 };
 
-const paths = {
-  callback: pathsConfig.auth.callback,
-  appHome: pathsConfig.app.home,
-};
+async function SignUpPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const marketingContent = await fetchMarketingContent<MarketingContent>({ slug: 'home' });
+  const waitlist = marketingContent?.waitlist;
+  const forceWaitlist = searchParams?.mode === 'waitlist';
 
-function SignUpPage() {
   return (
     <>
       <Heading level={5} className={'tracking-tight'}>
         <Trans i18nKey={'auth:signUpHeading'} />
       </Heading>
 
-      <SignUpMethodsContainer
-        providers={authConfig.providers}
-        displayTermsCheckbox={authConfig.displayTermsCheckbox}
-        paths={paths}
+      <ExecgptSignUpForm
+        waitlistSms={
+          waitlist
+            ? {
+                enabled: waitlist.smsOptInEnabled,
+                label: waitlist.smsOptInLabel,
+                placeholder: waitlist.smsOptInPlaceholder,
+              }
+            : undefined
+        }
+        forceWaitlist={forceWaitlist}
       />
 
-      <div className={'flex justify-center'}>
-        <Button asChild variant={'link'} size={'sm'}>
-          <Link href={pathsConfig.auth.signIn}>
-            <Trans i18nKey={'auth:alreadyHaveAnAccount'} />
-          </Link>
-        </Button>
+      <div className={'flex justify-center text-sm'}>
+        <Link href={pathsConfig.auth.signIn}>
+          <Trans i18nKey={'auth:alreadyHaveAnAccount'} />
+        </Link>
       </div>
     </>
   );
