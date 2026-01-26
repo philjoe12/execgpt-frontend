@@ -17,6 +17,7 @@ const PathsSchema = z.object({
     integrations: z.string().min(1),
     agents: z.string().min(1),
     customers: z.string().min(1),
+    branding: z.string().min(1),
   }),
 });
 
@@ -37,6 +38,7 @@ const pathsConfig = PathsSchema.parse({
     integrations: '/home/integrations',
     agents: '/home/agents',
     customers: '/home/customers',
+    branding: '/home/branding',
   },
 } satisfies z.infer<typeof PathsSchema>);
 

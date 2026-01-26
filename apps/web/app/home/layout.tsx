@@ -47,9 +47,13 @@ function SidebarLayout({ children }: React.PropsWithChildren) {
   const canManageCustomers = Boolean(
     tenantAccess?.canManageCustomers || tenantAccess?.role === 'platform',
   );
+  const canManageBranding = Boolean(
+    tenantAccess?.canManageBranding || tenantAccess?.role === 'platform',
+  );
   const logoSrc = tenantAccess?.brandingLogoUrl || undefined;
   const filteredRoutes = filterNavigationRoutes(navigationConfig.routes, {
     canManageCustomers,
+    canManageBranding,
   });
   const filteredNavigation = {
     ...navigationConfig,
@@ -64,7 +68,11 @@ function SidebarLayout({ children }: React.PropsWithChildren) {
         </PageNavigation>
 
         <PageMobileNavigation className={'flex items-center justify-between'}>
-          <MobileNavigation canManageCustomers={canManageCustomers} logoSrc={logoSrc} />
+          <MobileNavigation
+            canManageCustomers={canManageCustomers}
+            canManageBranding={canManageBranding}
+            logoSrc={logoSrc}
+          />
         </PageMobileNavigation>
 
         {children}
@@ -81,9 +89,13 @@ function HeaderLayout({ children }: React.PropsWithChildren) {
   const canManageCustomers = Boolean(
     tenantAccess?.canManageCustomers || tenantAccess?.role === 'platform',
   );
+  const canManageBranding = Boolean(
+    tenantAccess?.canManageBranding || tenantAccess?.role === 'platform',
+  );
   const logoSrc = tenantAccess?.brandingLogoUrl || undefined;
   const filteredRoutes = filterNavigationRoutes(navigationConfig.routes, {
     canManageCustomers,
+    canManageBranding,
   });
   const filteredNavigation = {
     ...navigationConfig,
@@ -102,7 +114,11 @@ function HeaderLayout({ children }: React.PropsWithChildren) {
       </PageNavigation>
 
       <PageMobileNavigation className={'flex items-center justify-between'}>
-        <MobileNavigation canManageCustomers={canManageCustomers} logoSrc={logoSrc} />
+        <MobileNavigation
+          canManageCustomers={canManageCustomers}
+          canManageBranding={canManageBranding}
+          logoSrc={logoSrc}
+        />
       </PageMobileNavigation>
 
       {children}
@@ -110,12 +126,19 @@ function HeaderLayout({ children }: React.PropsWithChildren) {
   );
 }
 
-function MobileNavigation(props: { canManageCustomers: boolean; logoSrc?: string }) {
+function MobileNavigation(props: {
+  canManageCustomers: boolean;
+  canManageBranding: boolean;
+  logoSrc?: string;
+}) {
   return (
     <>
       <AppLogo logoSrc={props.logoSrc} />
 
-      <HomeMobileNavigation canManageCustomers={props.canManageCustomers} />
+      <HomeMobileNavigation
+        canManageCustomers={props.canManageCustomers}
+        canManageBranding={props.canManageBranding}
+      />
     </>
   );
 }

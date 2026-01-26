@@ -23,10 +23,14 @@ import { filterNavigationRoutes } from '~/lib/navigation/filter-navigation';
  * Mobile navigation for the home page
  * @constructor
  */
-export function HomeMobileNavigation(props: { canManageCustomers: boolean }) {
+export function HomeMobileNavigation(props: {
+  canManageCustomers: boolean;
+  canManageBranding: boolean;
+}) {
   const router = useRouter();
   const routes = filterNavigationRoutes(navigationConfig.routes, {
     canManageCustomers: props.canManageCustomers,
+    canManageBranding: props.canManageBranding,
   });
 
   const Links = routes.map((item, index) => {

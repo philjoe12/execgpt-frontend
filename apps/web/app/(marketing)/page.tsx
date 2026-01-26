@@ -14,6 +14,7 @@ import {
 } from '@kit/ui/marketing';
 import { withI18n } from '~/lib/i18n/with-i18n';
 import { fetchMarketingContent } from '~/lib/strapi/fetch-marketing-content';
+import { getPublicTenantContext } from '~/lib/tenant/get-public-tenant-context';
 
 type MarketingContent = {
   hero?: {
@@ -152,7 +153,11 @@ function iconForFeature(icon?: string) {
 }
 
 async function Home() {
-  const cmsContent = await fetchMarketingContent<MarketingContent>({ slug: 'home' });
+  const tenantContext = await getPublicTenantContext();
+  const cmsContent = await fetchMarketingContent<MarketingContent>({
+    slug: 'home',
+    tenantSlug: tenantContext?.tenant_slug,
+  });
   const content = { ...DEFAULT_CONTENT, ...(cmsContent || {}) };
   const hero = content.hero || DEFAULT_CONTENT.hero!;
   const steps = content.steps?.length ? content.steps : DEFAULT_CONTENT.steps!;

@@ -8,6 +8,8 @@ type TenantAccess = {
   tenantId: string;
   role: string;
   canManageCustomers: boolean;
+  canManageBranding: boolean;
+  tenantRole?: string | null;
   brandingLogoUrl?: string | null;
 };
 
@@ -35,13 +37,21 @@ export async function getTenantAccessInServerComponent(): Promise<TenantAccess |
     tenant_id?: string;
     role?: string;
     can_manage_customers?: boolean;
+    tenant_role?: string | null;
     branding_logo_url?: string | null;
   };
+
+  const tenantRole = payload.tenant_role || null;
+  const canManageCustomers = Boolean(payload.can_manage_customers);
+  const canManageBranding =
+    canManageCustomers || tenantRole === 'admin' || payload.role === 'platform';
 
   return {
     tenantId: payload.tenant_id || '',
     role: payload.role || 'customer',
-    canManageCustomers: Boolean(payload.can_manage_customers),
+    canManageCustomers,
+    canManageBranding,
+    tenantRole,
     brandingLogoUrl: payload.branding_logo_url ?? null,
   };
 }

@@ -15,10 +15,6 @@ type TenantInfo = {
   tenant_type: string;
   status: string;
   can_manage_customers?: boolean;
-  branding?: {
-    logo_url?: string | null;
-  } | null;
-  branding_logo_url?: string | null;
 };
 
 type ContactSettings = {
@@ -129,9 +125,6 @@ export function SettingsClient() {
   const [status, setStatus] = useState('');
   const [integrationStatus, setIntegrationStatus] = useState('');
   const [integrationError, setIntegrationError] = useState('');
-  const [brandingStatus, setBrandingStatus] = useState('');
-  const [brandingError, setBrandingError] = useState('');
-  const [brandingLogoUrl, setBrandingLogoUrl] = useState('');
   const [createError, setCreateError] = useState('');
   const [createStatus, setCreateStatus] = useState('');
   const [newUser, setNewUser] = useState<NewUserState>(emptyNewUser);
@@ -152,6 +145,29 @@ export function SettingsClient() {
   ]);
   const [restartGateway, setRestartGateway] = useState(true);
   const [restartAuth, setRestartAuth] = useState(false);
+  const [dnsProvider, setDnsProvider] = useState('');
+  const [dnsDomainFilters, setDnsDomainFilters] = useState('');
+  const [dnsTxtOwnerId, setDnsTxtOwnerId] = useState('');
+  const [dnsCredentialPairs, setDnsCredentialPairs] = useState<Array<{ key: string; value: string }>>([
+    { key: '', value: '' }
+  ]);
+  const [dnsCredentialSummary, setDnsCredentialSummary] = useState<{ configured: boolean; keys: string[] }>({
+    configured: false,
+    keys: []
+  });
+  const [enableExternalDns, setEnableExternalDns] = useState(true);
+  const [clusterIssuerName, setClusterIssuerName] = useState('letsencrypt');
+  const [clusterIssuerSecretName, setClusterIssuerSecretName] = useState('letsencrypt');
+  const [acmeEmail, setAcmeEmail] = useState('');
+  const [acmeServer, setAcmeServer] = useState('');
+  const [enableClusterIssuer, setEnableClusterIssuer] = useState(true);
+  const [infraEnvironment, setInfraEnvironment] = useState('staging');
+  const [infraSaving, setInfraSaving] = useState(false);
+  const [infraApplying, setInfraApplying] = useState(false);
+  const [infraStatus, setInfraStatus] = useState('');
+  const [infraError, setInfraError] = useState('');
+  const [infraRunnerActive, setInfraRunnerActive] = useState(0);
+  const [infraQueueStats, setInfraQueueStats] = useState<Record<string, number>>({});
 
   const apiBase = useMemo(() => {
     if (process.env.NEXT_PUBLIC_API_URL) {
@@ -224,6 +240,76 @@ export function SettingsClient() {
     }
   };
 
+  const loadInfrastructureSettings = async (tenantId: string, headers: HeadersInit) => {
+    setInfraError('');
+    try {
+      const [dnsResponse, certResponse] = await Promise.all([
+        fetch(`${apiBase}/api/v1/tenants/${tenantId}/settings/dns`, { headers }),
+        fetch(`${apiBase}/api/v1/tenants/${tenantId}/settings/certificates`, { headers })
+      ]);
+
+      const dnsPayload = await dnsResponse.json();
+      const certPayload = await certResponse.json();
+
+      if (dnsResponse.ok && dnsPayload?.settings) {
+        const dnsSettings = dnsPayload.settings;
+        setDnsProvider(String(extractSettingValue(dnsSettings.provider) || ''));
+        const filters = extractSettingValue(dnsSettings.domain_filters);
+        const domainList = Array.isArray(filters) ? filters : [];
+        setDnsDomainFilters(domainList.join(', '));
+        setDnsTxtOwnerId(String(extractSettingValue(dnsSettings.txt_owner_id) || ''));
+        const credentialValue = extractSettingValue(dnsSettings.provider_credentials) as
+          | { configured?: boolean; keys?: string[] }
+          | null;
+        setDnsCredentialSummary({
+          configured: Boolean(credentialValue?.configured),
+          keys: credentialValue?.keys || []
+        });
+        setEnableExternalDns(Boolean(extractSettingValue(dnsSettings.enable_external_dns) ?? true));
+      }
+
+      if (certResponse.ok && certPayload?.settings) {
+        const certSettings = certPayload.settings;
+        setClusterIssuerName(String(extractSettingValue(certSettings.cluster_issuer_name) || 'letsencrypt'));
+        setClusterIssuerSecretName(String(extractSettingValue(certSettings.cluster_issuer_secret_name) || 'letsencrypt'));
+        setAcmeEmail(String(extractSettingValue(certSettings.acme_email) || ''));
+        setAcmeServer(String(extractSettingValue(certSettings.acme_server) || ''));
+        setEnableClusterIssuer(Boolean(extractSettingValue(certSettings.enable_cluster_issuer) ?? true));
+      }
+    } catch (err) {
+      setInfraError(err instanceof Error ? err.message : 'Failed to load infrastructure settings.');
+    }
+  };
+
+  const refreshInfrastructureStatus = async (tenantId: string, headers: HeadersInit) => {
+    try {
+      const response = await fetch(`${apiBase}/api/v1/terraform/infra/${tenantId}`, { headers });
+      const payload = await response.json();
+      if (response.ok && payload?.status) {
+        const status = payload.status;
+        if (status.lastJob?.updatedAt) {
+          setInfraStatus(`Last run: ${status.lastJob.updatedAt}`);
+        }
+      }
+    } catch (err) {
+      setInfraError(err instanceof Error ? err.message : 'Failed to load infrastructure status.');
+    }
+  };
+
+  const refreshRunnerHealth = async (headers: HeadersInit) => {
+    try {
+      const response = await fetch(`${apiBase}/api/v1/terraform/health`, { headers });
+      const payload = await response.json();
+      if (response.ok) {
+        const activeCount = payload?.runners?.activeCount ?? 0;
+        setInfraRunnerActive(Number.isFinite(activeCount) ? activeCount : 0);
+        setInfraQueueStats(payload?.queue || {});
+      }
+    } catch (err) {
+      setInfraError(err instanceof Error ? err.message : 'Failed to load runner health.');
+    }
+  };
+
   useEffect(() => {
     const token = getAuthToken();
     if (!token || !apiBase) {
@@ -243,9 +329,6 @@ export function SettingsClient() {
         }
 
         setTenant(mePayload);
-        const resolvedBrandingLogo =
-          mePayload.branding_logo_url || mePayload.branding?.logo_url || '';
-        setBrandingLogoUrl(resolvedBrandingLogo);
         const canManage = Boolean(
           mePayload.can_manage_customers || mePayload.role === 'platform'
         );
@@ -275,6 +358,9 @@ export function SettingsClient() {
           });
         }
 
+        await loadInfrastructureSettings(mePayload.tenant_id, headers);
+        await refreshInfrastructureStatus(mePayload.tenant_id, headers);
+        await refreshRunnerHealth(headers);
         await refreshUsers(mePayload.tenant_id, headers);
         if (canManage) {
           await refreshWaitlist(headers);
@@ -322,6 +408,179 @@ export function SettingsClient() {
       setError(err instanceof Error ? err.message : 'Failed to update contact info.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveInfrastructure = async () => {
+    if (!tenant) {
+      return;
+    }
+    setInfraSaving(true);
+    setInfraStatus('');
+    setInfraError('');
+    const token = getAuthToken();
+
+    const domainFilters = dnsDomainFilters
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    const credentialPayload = dnsCredentialPairs.reduce<Record<string, string>>((acc, pair) => {
+      if (pair.key.trim()) {
+        acc[pair.key.trim()] = pair.value.trim();
+      }
+      return acc;
+    }, {});
+
+    const dnsSettings: Record<string, unknown> = {
+      provider: dnsProvider.trim() || null,
+      domain_filters: domainFilters,
+      txt_owner_id: dnsTxtOwnerId.trim() || null,
+      enable_external_dns: enableExternalDns
+    };
+
+    if (Object.keys(credentialPayload).length > 0) {
+      dnsSettings.provider_credentials = credentialPayload;
+    }
+
+    const certSettings = {
+      cluster_issuer_name: clusterIssuerName.trim() || 'letsencrypt',
+      cluster_issuer_secret_name: clusterIssuerSecretName.trim() || 'letsencrypt',
+      acme_email: acmeEmail.trim() || null,
+      acme_server: acmeServer.trim() || null,
+      enable_cluster_issuer: enableClusterIssuer
+    };
+
+    try {
+      const [dnsResponse, certResponse] = await Promise.all([
+        fetch(`${apiBase}/api/v1/tenants/${tenant.tenant_id}/settings/dns`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ settings: dnsSettings })
+        }),
+        fetch(`${apiBase}/api/v1/tenants/${tenant.tenant_id}/settings/certificates`, {
+          method: 'PUT',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ settings: certSettings })
+        })
+      ]);
+
+      const dnsPayload = await dnsResponse.json();
+      const certPayload = await certResponse.json();
+      if (!dnsResponse.ok) {
+        throw new Error(dnsPayload?.error || 'Failed to update DNS settings.');
+      }
+      if (!certResponse.ok) {
+        throw new Error(certPayload?.error || 'Failed to update certificate settings.');
+      }
+
+      setInfraStatus('Infrastructure settings saved.');
+      await loadInfrastructureSettings(tenant.tenant_id, { Authorization: `Bearer ${token}` });
+    } catch (err) {
+      setInfraError(err instanceof Error ? err.message : 'Failed to update infrastructure settings.');
+    } finally {
+      setInfraSaving(false);
+    }
+  };
+
+  const handleApplyInfrastructure = async () => {
+    if (!tenant) {
+      return;
+    }
+    setInfraApplying(true);
+    setInfraStatus('');
+    setInfraError('');
+    const token = getAuthToken();
+
+    const domainFilters = dnsDomainFilters
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (enableExternalDns) {
+      if (!dnsProvider.trim()) {
+        setInfraApplying(false);
+        setInfraError('DNS provider is required when external-dns is enabled.');
+        return;
+      }
+      if (domainFilters.length === 0) {
+        setInfraApplying(false);
+        setInfraError('Add at least one domain filter when external-dns is enabled.');
+        return;
+      }
+    }
+
+    if (enableClusterIssuer) {
+      if (!acmeEmail.trim()) {
+        setInfraApplying(false);
+        setInfraError('ACME email is required when ClusterIssuer is enabled.');
+        return;
+      }
+      if (!acmeServer.trim()) {
+        setInfraApplying(false);
+        setInfraError('ACME server URL is required when ClusterIssuer is enabled.');
+        return;
+      }
+    }
+
+    try {
+      const response = await fetch(`${apiBase}/api/v1/terraform/jobs`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          tenantId: tenant.tenant_id,
+          type: 'infrastructure',
+          environment: infraEnvironment,
+          payload: {
+            useTenantSettings: true
+          }
+        })
+      });
+
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to create Terraform job.');
+      }
+
+      const jobId = payload.job?.jobId;
+      if (!jobId) {
+        throw new Error('Terraform job did not return a jobId.');
+      }
+
+      const applyResponse = await fetch(`${apiBase}/api/v1/terraform/jobs/${jobId}/apply`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ approved: infraEnvironment !== 'prod' })
+      });
+
+      const applyPayload = await applyResponse.json();
+      if (!applyResponse.ok) {
+        if (applyResponse.status === 409) {
+          setInfraStatus('Plan created. Approval required before apply.');
+        } else {
+          throw new Error(applyPayload?.error || 'Failed to apply Terraform job.');
+        }
+      } else {
+        setInfraStatus('Terraform apply completed.');
+        await refreshInfrastructureStatus(tenant.tenant_id, { Authorization: `Bearer ${token}` });
+        await refreshRunnerHealth({ Authorization: `Bearer ${token}` });
+      }
+    } catch (err) {
+      setInfraError(err instanceof Error ? err.message : 'Failed to run Terraform apply.');
+    } finally {
+      setInfraApplying(false);
     }
   };
 
@@ -397,41 +656,6 @@ export function SettingsClient() {
       await refreshWaitlist({ Authorization: `Bearer ${token}` });
     } catch (err) {
       setWaitlistError(err instanceof Error ? err.message : 'Failed to send invite.');
-    }
-  };
-
-  const handleBrandingSave = async () => {
-    if (!tenant) {
-      return;
-    }
-
-    setBrandingStatus('');
-    setBrandingError('');
-    const token = getAuthToken();
-
-    try {
-      const response = await fetch(
-        `${apiBase}/api/v1/tenants/${tenant.tenant_id}`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            branding: {
-              logo_url: brandingLogoUrl || null
-            }
-          })
-        }
-      );
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to update branding.');
-      }
-      setBrandingStatus('Branding updated.');
-    } catch (err) {
-      setBrandingError(err instanceof Error ? err.message : 'Failed to update branding.');
     }
   };
 
@@ -682,36 +906,194 @@ export function SettingsClient() {
         </div>
       </div>
 
-      {canManageCustomers ? (
-        <div className={'rounded-xl border bg-card p-6'}>
-          <h3 className={'text-base font-semibold'}>Branding</h3>
-          <p className={'text-sm text-muted-foreground'}>
-            Update the ExecGPT logo shown to your tenants. Use a public image URL.
-          </p>
-          <div className={'mt-4 grid gap-4 md:grid-cols-2'}>
-            <label className={'space-y-2 text-sm md:col-span-2'}>
-              <span className={'text-xs uppercase text-muted-foreground'}>Logo URL</span>
+      <div className={'rounded-xl border bg-card p-6'}>
+        <h3 className={'text-base font-semibold'}>White-Label Infrastructure</h3>
+        <p className={'text-sm text-muted-foreground'}>
+          Configure DNS and TLS automation used by Terraform for your tenant.
+        </p>
+        <div className={'mt-6 grid gap-6 lg:grid-cols-2'}>
+          <div className={'space-y-4'}>
+            <div className={'text-sm font-medium'}>DNS (external-dns)</div>
+            <label className={'space-y-2 text-sm'}>
+              <span className={'text-xs uppercase text-muted-foreground'}>Provider</span>
               <input
                 className={'w-full rounded-md border px-3 py-2'}
-                value={brandingLogoUrl}
-                onChange={(event) => setBrandingLogoUrl(event.target.value)}
-                placeholder={'https://cms.execgpt.com/uploads/logo.png'}
+                placeholder={'google | aws | cloudflare | godaddy'}
+                value={dnsProvider}
+                onChange={(event) => setDnsProvider(event.target.value)}
               />
             </label>
-          </div>
-          <div className={'mt-4 flex items-center gap-3'}>
-            <Button onClick={handleBrandingSave}>Save Branding</Button>
-            {brandingStatus ? (
-              <span className={'text-sm text-emerald-600'}>{brandingStatus}</span>
-            ) : null}
-          </div>
-          {brandingError ? (
-            <div className={'mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'}>
-              {brandingError}
+            <label className={'space-y-2 text-sm'}>
+              <span className={'text-xs uppercase text-muted-foreground'}>Domain Filters</span>
+              <input
+                className={'w-full rounded-md border px-3 py-2'}
+                placeholder={'staging.execgpt.com, execgpt.com'}
+                value={dnsDomainFilters}
+                onChange={(event) => setDnsDomainFilters(event.target.value)}
+              />
+            </label>
+            <label className={'space-y-2 text-sm'}>
+              <span className={'text-xs uppercase text-muted-foreground'}>TXT Owner ID</span>
+              <input
+                className={'w-full rounded-md border px-3 py-2'}
+                placeholder={'bluebear-staging'}
+                value={dnsTxtOwnerId}
+                onChange={(event) => setDnsTxtOwnerId(event.target.value)}
+              />
+            </label>
+            <label className={'flex items-center gap-2 text-sm'}>
+              <input
+                type={'checkbox'}
+                checked={enableExternalDns}
+                onChange={(event) => setEnableExternalDns(event.target.checked)}
+              />
+              Enable external-dns
+            </label>
+            <div className={'space-y-2'}>
+              <div className={'text-xs uppercase text-muted-foreground'}>Provider Credentials</div>
+              <div className={'rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground'}>
+                {dnsCredentialSummary.configured
+                  ? `Stored keys: ${dnsCredentialSummary.keys.join(', ')}`
+                  : 'No credentials stored yet.'}
+              </div>
+              {dnsCredentialPairs.map((pair, index) => (
+                <div key={`${pair.key}-${index}`} className={'grid gap-2 md:grid-cols-2'}>
+                  <input
+                    className={'w-full rounded-md border px-3 py-2 text-sm'}
+                    placeholder={'GODADDY_API_KEY'}
+                    value={pair.key}
+                    onChange={(event) => {
+                      const next = [...dnsCredentialPairs];
+                      next[index] = { ...next[index], key: event.target.value };
+                      setDnsCredentialPairs(next);
+                    }}
+                  />
+                  <input
+                    className={'w-full rounded-md border px-3 py-2 text-sm'}
+                    placeholder={'value'}
+                    value={pair.value}
+                    onChange={(event) => {
+                      const next = [...dnsCredentialPairs];
+                      next[index] = { ...next[index], value: event.target.value };
+                      setDnsCredentialPairs(next);
+                    }}
+                  />
+                </div>
+              ))}
+              <div className={'flex flex-wrap gap-2'}>
+                <Button
+                  type={'button'}
+                  variant={'outline'}
+                  onClick={() =>
+                    setDnsCredentialPairs((prev) => [...prev, { key: '', value: '' }])
+                  }
+                >
+                  Add Credential
+                </Button>
+                {dnsCredentialPairs.length > 1 ? (
+                  <Button
+                    type={'button'}
+                    variant={'outline'}
+                    onClick={() =>
+                      setDnsCredentialPairs((prev) => prev.slice(0, -1))
+                    }
+                  >
+                    Remove
+                  </Button>
+                ) : null}
+              </div>
+              <div className={'text-xs text-muted-foreground'}>
+                Credentials are encrypted and never shown again after saving.
+              </div>
             </div>
+          </div>
+          <div className={'space-y-4'}>
+            <div className={'text-sm font-medium'}>Certificates (cert-manager)</div>
+            <label className={'space-y-2 text-sm'}>
+              <span className={'text-xs uppercase text-muted-foreground'}>Cluster Issuer Name</span>
+              <input
+                className={'w-full rounded-md border px-3 py-2'}
+                value={clusterIssuerName}
+                onChange={(event) => setClusterIssuerName(event.target.value)}
+              />
+            </label>
+            <label className={'space-y-2 text-sm'}>
+              <span className={'text-xs uppercase text-muted-foreground'}>Cluster Issuer Secret</span>
+              <input
+                className={'w-full rounded-md border px-3 py-2'}
+                value={clusterIssuerSecretName}
+                onChange={(event) => setClusterIssuerSecretName(event.target.value)}
+              />
+            </label>
+            <label className={'space-y-2 text-sm'}>
+              <span className={'text-xs uppercase text-muted-foreground'}>ACME Email</span>
+              <input
+                className={'w-full rounded-md border px-3 py-2'}
+                placeholder={'ops@example.com'}
+                value={acmeEmail}
+                onChange={(event) => setAcmeEmail(event.target.value)}
+              />
+            </label>
+            <label className={'space-y-2 text-sm'}>
+              <span className={'text-xs uppercase text-muted-foreground'}>ACME Server</span>
+              <input
+                className={'w-full rounded-md border px-3 py-2'}
+                placeholder={'https://acme-v02.api.letsencrypt.org/directory'}
+                value={acmeServer}
+                onChange={(event) => setAcmeServer(event.target.value)}
+              />
+            </label>
+            <label className={'flex items-center gap-2 text-sm'}>
+              <input
+                type={'checkbox'}
+                checked={enableClusterIssuer}
+                onChange={(event) => setEnableClusterIssuer(event.target.checked)}
+              />
+              Create ClusterIssuer
+            </label>
+          </div>
+        </div>
+        <div className={'mt-6 flex flex-wrap items-center gap-3'}>
+          <Button onClick={handleSaveInfrastructure} disabled={infraSaving}>
+            {infraSaving ? 'Saving...' : 'Save Infra Settings'}
+          </Button>
+          <div className={'flex items-center gap-2 text-sm'}>
+            <span className={'text-xs uppercase text-muted-foreground'}>Environment</span>
+            <select
+              className={'rounded-md border px-3 py-2 text-sm'}
+              value={infraEnvironment}
+              onChange={(event) => setInfraEnvironment(event.target.value)}
+            >
+              <option value={'staging'}>staging</option>
+              <option value={'prod'}>prod</option>
+            </select>
+          </div>
+          <Button
+            variant={'outline'}
+            onClick={handleApplyInfrastructure}
+            disabled={infraApplying}
+          >
+            {infraApplying ? 'Applying...' : 'Apply Terraform'}
+          </Button>
+          {infraStatus ? <span className={'text-sm text-emerald-600'}>{infraStatus}</span> : null}
+        </div>
+        <div className={'mt-3 flex flex-wrap gap-4 text-sm text-muted-foreground'}>
+          <span>Runners active: {infraRunnerActive}</span>
+          {Object.keys(infraQueueStats).length > 0 ? (
+            <span>
+              Queue:{' '}
+              {Object.entries(infraQueueStats)
+                .map(([key, value]) => `${key}=${value}`)
+                .join(', ')}
+            </span>
           ) : null}
         </div>
-      ) : null}
+        {infraError ? (
+          <div className={'mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'}>
+            {infraError}
+          </div>
+        ) : null}
+      </div>
 
       <div className={'rounded-xl border bg-card p-6'}>
         <h3 className={'text-base font-semibold'}>Users</h3>

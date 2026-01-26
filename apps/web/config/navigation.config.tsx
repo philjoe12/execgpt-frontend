@@ -1,4 +1,4 @@
-import { Home, Link, MessageCircle, Rocket, User, Users, Wand2 } from 'lucide-react';
+import { Home, Link, MessageCircle, Palette, Rocket, User, Users, Wand2 } from 'lucide-react';
 import { z } from 'zod';
 
 import { NavigationConfigSchema } from '@kit/ui/navigation-schema';
@@ -47,6 +47,11 @@ const routes = [
   {
     label: 'common:routes.settings',
     children: [
+      {
+        label: 'common:routes.branding',
+        path: pathsConfig.app.branding,
+        Icon: <Palette className={iconClasses} />,
+      },
       {
         label: 'common:routes.profile',
         path: pathsConfig.app.profileSettings,

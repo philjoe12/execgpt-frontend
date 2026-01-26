@@ -4,10 +4,15 @@ import { Trans } from '@kit/ui/trans';
 import { AppLogo } from '~/components/app-logo';
 import appConfig from '~/config/app.config';
 
-export function SiteFooter() {
+export function SiteFooter(props: { logoSrc?: string }) {
   return (
     <Footer
-      logo={<AppLogo className="w-[85px] md:w-[95px]" logoSrc="/images/iconforurl.png" />}
+      logo={
+        <AppLogo
+          className="w-[85px] md:w-[95px]"
+          logoSrc={props.logoSrc || '/images/iconforurl.png'}
+        />
+      }
       description={<Trans i18nKey="marketing:footerDescription" />}
       copyright={
         <Trans

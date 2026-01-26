@@ -8,6 +8,7 @@ import { ExecgptSignUpForm } from '~/auth/_components/execgpt-sign-up-form';
 import { createI18nServerInstance } from '~/lib/i18n/i18n.server';
 import { withI18n } from '~/lib/i18n/with-i18n';
 import { fetchMarketingContent } from '~/lib/strapi/fetch-marketing-content';
+import { getPublicTenantContext } from '~/lib/tenant/get-public-tenant-context';
 
 type WaitlistConfig = {
   smsOptInEnabled?: boolean;
@@ -32,7 +33,11 @@ async function SignUpPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const marketingContent = await fetchMarketingContent<MarketingContent>({ slug: 'home' });
+  const tenantContext = await getPublicTenantContext();
+  const marketingContent = await fetchMarketingContent<MarketingContent>({
+    slug: 'home',
+    tenantSlug: tenantContext?.tenant_slug,
+  });
   const waitlist = marketingContent?.waitlist;
   const forceWaitlist = searchParams?.mode === 'waitlist';
 

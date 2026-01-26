@@ -21,27 +21,32 @@ type NavigationRoutes = Array<
 
 type FilterOptions = {
   canManageCustomers: boolean;
+  canManageBranding: boolean;
 };
 
-const restrictedPaths = new Set([
-  pathsConfig.app.tenantWizard,
-  pathsConfig.app.customers,
-]);
+const customerRestrictedPaths = new Set([pathsConfig.app.tenantWizard, pathsConfig.app.customers]);
+const brandingRestrictedPaths = new Set([pathsConfig.app.branding]);
 
 export function filterNavigationRoutes(
   routes: NavigationRoutes,
   options: FilterOptions,
 ): NavigationRoutes {
-  if (options.canManageCustomers) {
+  if (options.canManageCustomers && options.canManageBranding) {
     return routes;
   }
 
   return routes
     .map((route) => {
       if ('children' in route) {
-        const children = route.children.filter(
-          (child) => !restrictedPaths.has(child.path),
-        );
+        const children = route.children.filter((child) => {
+          if (!options.canManageCustomers && customerRestrictedPaths.has(child.path)) {
+            return false;
+          }
+          if (!options.canManageBranding && brandingRestrictedPaths.has(child.path)) {
+            return false;
+          }
+          return true;
+        });
         if (!children.length) {
           return null;
         }
@@ -52,7 +57,11 @@ export function filterNavigationRoutes(
         return route;
       }
 
-      if (restrictedPaths.has(route.path)) {
+      if (!options.canManageCustomers && customerRestrictedPaths.has(route.path)) {
+        return null;
+      }
+
+      if (!options.canManageBranding && brandingRestrictedPaths.has(route.path)) {
         return null;
       }
 

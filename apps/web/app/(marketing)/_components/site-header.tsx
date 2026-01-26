@@ -7,10 +7,10 @@ import { AppLogo } from '~/components/app-logo';
 import { SiteHeaderAccountSection } from './site-header-account-section';
 import { SiteNavigation } from './site-navigation';
 
-export function SiteHeader(props: { user?: ExecgptUser | null }) {
+export function SiteHeader(props: { user?: ExecgptUser | null; logoSrc?: string }) {
   return (
     <Header
-      logo={<AppLogo />}
+      logo={<AppLogo logoSrc={props.logoSrc} />}
       navigation={<SiteNavigation />}
       actions={<SiteHeaderAccountSection user={props.user ?? null} />}
     />
