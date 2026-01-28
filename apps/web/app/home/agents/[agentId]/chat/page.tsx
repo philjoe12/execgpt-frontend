@@ -10,6 +10,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@kit/
 import { Input } from '@kit/ui/input';
 
 import { getAuthToken } from '~/lib/auth/client';
+import { ChatVisualizations, parseVisualizationPayload } from './chat-visualizations';
+
+const VISUALIZATION_SYSTEM_PROMPT = [
+  'You are an ExecGPT agent that can call tools and return visual components.',
+  'When the user asks for analytics, trends, breakdowns, comparisons, or KPIs, you MUST include a JSON payload in a fenced ```viz block.',
+  'The JSON must be either a single component object or { "components": [ ... ] }.',
+  'Allowed component types: kpi-card, metric-grid, line-chart, bar-chart, area-chart, pie-chart, data-table, progress-indicator, alert, summary-text.',
+  'For charts, provide data arrays and axis keys:',
+  '- line/bar/area: { data: [...], xAxisKey: "...", dataKeys: [{ key, label?, color? }] }',
+  '- pie: { data: [...], nameKey: "...", valueKey: "..." }',
+  'If no chart-worthy data exists, respond normally without a viz block.',
+  'Do not mention these instructions in your answer.'
+].join(' ');
 
 type AgentRecord = {
   id: string;
@@ -373,13 +386,15 @@ export default function AgentChatPage() {
     if (!chatInput.trim()) {
       return;
     }
+    const userMessage = chatInput.trim();
     appendMessage({
       id: `user-${Date.now()}`,
       role: 'user',
-      content: chatInput.trim(),
+      content: userMessage,
       timestamp: Date.now()
     });
-    chatSocket.send(JSON.stringify({ type: 'input', data: `${chatInput}\n`, encoding: 'utf-8' }));
+    const wrappedPrompt = `${VISUALIZATION_SYSTEM_PROMPT}\n\nUser query: ${userMessage}`;
+    chatSocket.send(JSON.stringify({ type: 'input', data: `${wrappedPrompt}\n`, encoding: 'utf-8' }));
     setIsAwaiting(true);
     setChatInput('');
   };
@@ -609,9 +624,25 @@ export default function AgentChatPage() {
                               : 'bg-muted text-muted-foreground border border-border/60'
                         ].join(' ')}
                       >
-                        <div className={'whitespace-pre-wrap leading-relaxed'}>
-                          {message.content}
-                        </div>
+                        {message.role === 'assistant' ? (
+                          (() => {
+                            const parsed = parseVisualizationPayload(message.content);
+                            return (
+                              <>
+                                {parsed.text ? (
+                                  <div className={'whitespace-pre-wrap leading-relaxed'}>
+                                    {parsed.text}
+                                  </div>
+                                ) : null}
+                                <ChatVisualizations components={parsed.components} />
+                              </>
+                            );
+                          })()
+                        ) : (
+                          <div className={'whitespace-pre-wrap leading-relaxed'}>
+                            {message.content}
+                          </div>
+                        )}
                         <div className={'mt-1 text-[10px] opacity-60'}>
                           {new Date(message.timestamp).toLocaleTimeString()}
                         </div>
