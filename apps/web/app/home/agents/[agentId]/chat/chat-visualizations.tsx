@@ -19,7 +19,6 @@ import { Alert, AlertDescription, AlertTitle } from '@kit/ui/alert';
 import { Badge } from '@kit/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@kit/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@kit/ui/chart';
-import { Progress } from '@kit/ui/progress';
 import {
   Table,
   TableBody,
@@ -224,7 +223,7 @@ function VisualizationItem({ component }: { component: VisualizationComponent })
             </CardHeader>
           ) : null}
           <CardContent className={'space-y-2'}>
-            <Progress value={component.value} />
+            <ProgressBar value={component.value} />
             <div className={'text-xs text-muted-foreground'}>{component.value}%</div>
           </CardContent>
         </Card>
@@ -397,3 +396,14 @@ function PieChartCard({
   );
 }
 
+function ProgressBar({ value }: { value: number }) {
+  const safeValue = Math.max(0, Math.min(100, Number.isFinite(value) ? value : 0));
+  return (
+    <div className={'h-2 w-full overflow-hidden rounded-full bg-muted/40'}>
+      <div
+        className={'h-full rounded-full bg-primary/70 transition-all'}
+        style={{ width: `${safeValue}%` }}
+      />
+    </div>
+  );
+}
