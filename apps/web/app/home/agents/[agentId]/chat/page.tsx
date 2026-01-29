@@ -93,6 +93,14 @@ export default function AgentChatPage() {
   });
   const uploadFilesRef = useRef<HTMLInputElement>(null);
   const uploadFolderRef = useRef<HTMLInputElement>(null);
+  const awaitingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearAwaitingTimeout = useCallback(() => {
+    if (awaitingTimeoutRef.current) {
+      clearTimeout(awaitingTimeoutRef.current);
+      awaitingTimeoutRef.current = null;
+    }
+  }, []);
 
   const appendMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);
@@ -299,6 +307,7 @@ export default function AgentChatPage() {
         const payload = JSON.parse(event.data as string);
         if (payload.type === 'output' && payload.data) {
           const decoded = stripAnsi(atob(payload.data));
+          clearAwaitingTimeout();
           setIsAwaiting(false);
           setMessages((prev) => {
             const last = prev[prev.length - 1];
@@ -345,6 +354,7 @@ export default function AgentChatPage() {
             content: payload.error || 'Agent error',
             timestamp: Date.now()
           });
+          clearAwaitingTimeout();
           setIsAwaiting(false);
           return;
         }
@@ -363,18 +373,23 @@ export default function AgentChatPage() {
     };
     ws.onclose = () => {
       console.warn('[AgentChat] WebSocket closed', { wsUrl });
+      clearAwaitingTimeout();
+      setIsAwaiting(false);
       setChatSocket(null);
     };
     ws.onerror = (event) => {
       console.error('[AgentChat] WebSocket error', { wsUrl, event });
+      clearAwaitingTimeout();
+      setIsAwaiting(false);
       setChatSocket(null);
     };
     setChatSocket(ws);
 
     return () => {
+      clearAwaitingTimeout();
       ws.close();
     };
-  }, [wsUrl]);
+  }, [clearAwaitingTimeout, wsUrl, stripAnsi, appendMessage]);
 
   const isSessionReady = Boolean(sessionId && chatSocket && chatSocket.readyState === WebSocket.OPEN);
 
@@ -394,8 +409,23 @@ export default function AgentChatPage() {
       timestamp: Date.now()
     });
     const wrappedPrompt = `${VISUALIZATION_SYSTEM_PROMPT}\n\nUser query: ${userMessage}`;
-    chatSocket.send(JSON.stringify({ type: 'input', data: `${wrappedPrompt}\n`, encoding: 'utf-8' }));
+    try {
+      chatSocket.send(JSON.stringify({ type: 'input', data: `${wrappedPrompt}\n`, encoding: 'utf-8' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send message.');
+      return;
+    }
     setIsAwaiting(true);
+    clearAwaitingTimeout();
+    awaitingTimeoutRef.current = setTimeout(() => {
+      setIsAwaiting(false);
+      appendMessage({
+        id: `timeout-${Date.now()}`,
+        role: 'system',
+        content: 'Agent response timed out. Please try sending again.',
+        timestamp: Date.now()
+      });
+    }, 120000);
     setChatInput('');
   };
 
