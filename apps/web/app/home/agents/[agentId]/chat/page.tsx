@@ -14,6 +14,8 @@ import { ChatVisualizations, parseVisualizationPayload } from './chat-visualizat
 
 const VISUALIZATION_SYSTEM_PROMPT = [
   'You are an ExecGPT agent that can call tools and return visual components.',
+  'You CAN create and update QuickBooks data via MCP tools (customers, invoices, items).',
+  'If a user asks to update QuickBooks, do not refuse; ask for any missing required fields and then call the appropriate tool.',
   'When the user asks for analytics, trends, breakdowns, comparisons, or KPIs, you MUST include a JSON payload in a fenced ```viz block or as the full response body.',
   'The JSON must be either a single component object or { "components": [ ... ], "summary": "..." }.',
   'Allowed component types: kpi-card, metric-grid, line-chart, bar-chart, area-chart, pie-chart, data-table, progress-indicator, alert, summary-text.',
