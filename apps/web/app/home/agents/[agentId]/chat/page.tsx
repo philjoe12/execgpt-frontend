@@ -99,6 +99,7 @@ export default function AgentChatPage() {
   const [isAwaiting, setIsAwaiting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState('');
+  const [wsReconnectAttempt, setWsReconnectAttempt] = useState(0);
   const [pendingUploads, setPendingUploads] = useState<UploadItem[]>([]);
   const [chatSettings, setChatSettings] = useState<ChatSettings>({
     historyLimit: 50,
@@ -109,6 +110,8 @@ export default function AgentChatPage() {
   const uploadFilesRef = useRef<HTMLInputElement>(null);
   const uploadFolderRef = useRef<HTMLInputElement>(null);
   const awaitingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingInputRef = useRef<string[]>([]);
 
   const clearAwaitingTimeout = useCallback(() => {
     if (awaitingTimeoutRef.current) {
@@ -116,6 +119,26 @@ export default function AgentChatPage() {
       awaitingTimeoutRef.current = null;
     }
   }, []);
+
+  const clearReconnectTimeout = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleReconnect = useCallback((reason: string) => {
+    if (!wsUrl || reconnectTimeoutRef.current) {
+      return;
+    }
+    const delay = Math.min(5000, 1000 + wsReconnectAttempt * 500);
+    console.warn('[AgentChat] Scheduling reconnect', { reason, delayMs: delay });
+    setError('Chat connection lost. Reconnecting...');
+    reconnectTimeoutRef.current = setTimeout(() => {
+      reconnectTimeoutRef.current = null;
+      setWsReconnectAttempt((prev) => prev + 1);
+    }, delay);
+  }, [wsReconnectAttempt, wsUrl]);
 
   const appendMessage = useCallback((message: ChatMessage) => {
     setMessages((prev) => [...prev, message]);
@@ -316,6 +339,20 @@ export default function AgentChatPage() {
     const ws = new WebSocket(wsUrl);
     ws.onopen = () => {
       console.info('[AgentChat] WebSocket connected', { wsUrl });
+      setError('');
+      setIsAwaiting(false);
+      clearReconnectTimeout();
+      if (pendingInputRef.current.length > 0) {
+        const queued = [...pendingInputRef.current];
+        pendingInputRef.current = [];
+        queued.forEach((queuedMessage) => {
+          try {
+            ws.send(JSON.stringify({ type: 'input', data: queuedMessage, encoding: 'utf-8' }));
+          } catch (err) {
+            console.error('[AgentChat] Failed to flush queued message', err);
+          }
+        });
+      }
     };
     ws.onmessage = (event) => {
       try {
@@ -391,26 +428,42 @@ export default function AgentChatPage() {
       clearAwaitingTimeout();
       setIsAwaiting(false);
       setChatSocket(null);
+      scheduleReconnect('close');
     };
     ws.onerror = (event) => {
       console.error('[AgentChat] WebSocket error', { wsUrl, event });
       clearAwaitingTimeout();
       setIsAwaiting(false);
       setChatSocket(null);
+      scheduleReconnect('error');
     };
     setChatSocket(ws);
 
     return () => {
       clearAwaitingTimeout();
+      clearReconnectTimeout();
       ws.close();
     };
-  }, [clearAwaitingTimeout, wsUrl, stripAnsi, appendMessage]);
+  }, [appendMessage, clearAwaitingTimeout, clearReconnectTimeout, scheduleReconnect, stripAnsi, wsReconnectAttempt, wsUrl]);
 
   const isSessionReady = Boolean(sessionId && chatSocket && chatSocket.readyState === WebSocket.OPEN);
 
   const sendChatInput = () => {
     if (!chatSocket || chatSocket.readyState !== WebSocket.OPEN) {
-      setError('Chat connection is not ready.');
+      if (!chatInput.trim()) {
+        return;
+      }
+      const userMessage = chatInput.trim();
+      appendMessage({
+        id: `user-${Date.now()}`,
+        role: 'user',
+        content: userMessage,
+        timestamp: Date.now()
+      });
+      const wrappedPrompt = `${VISUALIZATION_SYSTEM_PROMPT}\n\nUser query: ${userMessage}\n`;
+      pendingInputRef.current.push(wrappedPrompt);
+      setChatInput('');
+      scheduleReconnect('send');
       return;
     }
     if (!chatInput.trim()) {
@@ -423,7 +476,7 @@ export default function AgentChatPage() {
       content: userMessage,
       timestamp: Date.now()
     });
-    const wrappedPrompt = `${VISUALIZATION_SYSTEM_PROMPT}\n\nUser query: ${userMessage}`;
+    const wrappedPrompt = `${VISUALIZATION_SYSTEM_PROMPT}\n\nUser query: ${userMessage}\n`;
     try {
       chatSocket.send(JSON.stringify({ type: 'input', data: `${wrappedPrompt}\n`, encoding: 'utf-8' }));
     } catch (err) {
