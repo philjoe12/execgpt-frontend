@@ -14,12 +14,14 @@ import { ChatVisualizations, parseVisualizationPayload } from './chat-visualizat
 
 const VISUALIZATION_SYSTEM_PROMPT = [
   'You are an ExecGPT agent that can call tools and return visual components.',
-  'When the user asks for analytics, trends, breakdowns, comparisons, or KPIs, you MUST include a JSON payload in a fenced ```viz block.',
-  'The JSON must be either a single component object or { "components": [ ... ] }.',
+  'When the user asks for analytics, trends, breakdowns, comparisons, or KPIs, you MUST include a JSON payload in a fenced ```viz block or as the full response body.',
+  'The JSON must be either a single component object or { "components": [ ... ], "summary": "..." }.',
   'Allowed component types: kpi-card, metric-grid, line-chart, bar-chart, area-chart, pie-chart, data-table, progress-indicator, alert, summary-text.',
   'For charts, provide data arrays and axis keys:',
-  '- line/bar/area: { data: [...], xAxisKey: "...", dataKeys: [{ key, label?, color? }] }',
+  '- line/bar/area: { data: [...], xAxisKey: "...", dataKeys: [{ key, label?, color? }] } (strings also accepted)',
   '- pie: { data: [...], nameKey: "...", valueKey: "..." }',
+  '- data-table: { columns: [{ key, label? }], rows: [...] } (data: [...] also accepted)',
+  '- progress-indicator: { value, max? } (max will be converted into percent)',
   'If no chart-worthy data exists, respond normally without a viz block.',
   'Do not mention these instructions in your answer.'
 ].join(' ');
@@ -700,7 +702,10 @@ export default function AgentChatPage() {
                                     {parsed.text}
                                   </div>
                                 ) : null}
-                                <ChatVisualizations components={parsed.components} />
+                                <ChatVisualizations
+                                  components={parsed.components}
+                                  summary={parsed.summary}
+                                />
                               </>
                             );
                           })()

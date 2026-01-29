@@ -60,6 +60,7 @@ export type VisualizationComponent =
       title?: string;
       label?: string;
       value: number;
+      max?: number;
       variant?: AlertVariant;
     }
   | {
@@ -119,42 +120,214 @@ const renderTrend = (trend?: TrendDirection, change?: string) => {
   );
 };
 
-export function parseVisualizationPayload(content: string): {
+type ParsedVisualizationPayload = {
   text: string;
+  summary?: string;
   components: VisualizationComponent[];
-} {
+};
+
+const normalizeDataKeys = (dataKeys: unknown): Array<{ key: string; label?: string; color?: string }> => {
+  if (!Array.isArray(dataKeys)) return [];
+  return dataKeys
+    .map((entry) => {
+      if (!entry) return null;
+      if (typeof entry === 'string') return { key: entry };
+      if (typeof entry === 'object' && 'key' in entry) {
+        const typed = entry as { key: string; label?: string; color?: string };
+        return { key: typed.key, label: typed.label, color: typed.color };
+      }
+      return null;
+    })
+    .filter((entry): entry is { key: string; label?: string; color?: string } => Boolean(entry?.key));
+};
+
+const normalizeTableColumns = (
+  columns: unknown,
+  rows: Array<Record<string, string | number | null>>
+): Array<{ key: string; label: string; badge?: boolean }> => {
+  if (Array.isArray(columns) && columns.length) {
+    return columns.map((column: any) => {
+      if (typeof column === 'string') {
+        return { key: column, label: column };
+      }
+      return {
+        key: column.key,
+        label: column.label || column.key,
+        badge: column.badge
+      };
+    });
+  }
+  if (rows.length) {
+    return Object.keys(rows[0]).map((key) => ({ key, label: key }));
+  }
+  return [];
+};
+
+const normalizeComponent = (raw: any): VisualizationComponent | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  const type = raw.type as VisualizationComponent['type'] | undefined;
+  if (!type) return null;
+
+  if (type === 'kpi-card') {
+    const trend = raw.trend?.direction as TrendDirection | undefined;
+    const change = raw.change ?? (raw.trend?.value != null ? String(raw.trend.value) : undefined);
+    return {
+      type,
+      title: raw.title || raw.label || 'Metric',
+      value: raw.value ?? raw.amount ?? '—',
+      subtitle: raw.subtitle || raw.description,
+      change,
+      trend,
+      variant: raw.variant
+    };
+  }
+
+  if (type === 'metric-grid') {
+    return {
+      type,
+      title: raw.title,
+      metrics: Array.isArray(raw.metrics) ? raw.metrics : []
+    };
+  }
+
+  if (type === 'summary-text') {
+    return {
+      type,
+      text: raw.text || raw.content || raw.summary || ''
+    };
+  }
+
+  if (type === 'progress-indicator') {
+    const value = typeof raw.value === 'number' ? raw.value : 0;
+    const max = typeof raw.max === 'number' && raw.max > 0 ? raw.max : undefined;
+    const percent = max ? Math.round((value / max) * 100) : value;
+    return {
+      type,
+      title: raw.title,
+      label: raw.label,
+      value: Number.isFinite(percent) ? percent : 0,
+      max,
+      variant: raw.variant
+    };
+  }
+
+  if (type === 'alert') {
+    return {
+      type,
+      title: raw.title || raw.label || 'Alert',
+      description: raw.description || raw.message || '',
+      variant: raw.variant
+    };
+  }
+
+  if (type === 'data-table') {
+    const rows = Array.isArray(raw.rows) ? raw.rows : Array.isArray(raw.data) ? raw.data : [];
+    return {
+      type,
+      title: raw.title,
+      description: raw.description,
+      rows,
+      columns: normalizeTableColumns(raw.columns, rows)
+    };
+  }
+
+  if (type === 'line-chart' || type === 'bar-chart' || type === 'area-chart') {
+    return {
+      type,
+      title: raw.title,
+      description: raw.description,
+      data: Array.isArray(raw.data) ? raw.data : [],
+      xAxisKey: raw.xAxisKey || raw.xAxis || 'name',
+      dataKeys: normalizeDataKeys(raw.dataKeys)
+    };
+  }
+
+  if (type === 'pie-chart') {
+    return {
+      type,
+      title: raw.title,
+      description: raw.description,
+      data: Array.isArray(raw.data) ? raw.data : [],
+      nameKey: raw.nameKey || raw.xAxisKey || raw.labelKey || 'name',
+      valueKey: raw.valueKey || raw.dataKey || raw.valueField || 'value'
+    };
+  }
+
+  return null;
+};
+
+const normalizePayload = (parsed: any): { summary?: string; components: VisualizationComponent[] } => {
+  const summary = typeof parsed?.summary === 'string' ? parsed.summary : undefined;
+  const rawComponents = Array.isArray(parsed?.components)
+    ? parsed.components
+    : parsed?.type
+      ? [parsed]
+      : Array.isArray(parsed?.component)
+        ? parsed.component
+        : parsed?.component
+          ? [parsed.component]
+          : [];
+  const components = rawComponents.map(normalizeComponent).filter(Boolean) as VisualizationComponent[];
+  return { summary, components };
+};
+
+export function parseVisualizationPayload(content: string): ParsedVisualizationPayload {
   const blocks = Array.from(content.matchAll(/```(?:json|viz)\s*([\s\S]*?)```/gi));
   if (blocks.length === 0) {
+    const trimmed = content.trim();
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        const normalized = normalizePayload(parsed);
+        if (normalized.components.length) {
+          return { text: '', summary: normalized.summary, components: normalized.components };
+        }
+      } catch {
+        // fall through
+      }
+    }
     return { text: content, components: [] };
   }
 
   const components: VisualizationComponent[] = [];
   let cleaned = content;
+  let summary: string | undefined;
 
   blocks.forEach((match) => {
     const raw = match[0];
     const jsonText = match[1];
     try {
       const parsed = JSON.parse(jsonText);
-      if (Array.isArray(parsed?.components)) {
-        parsed.components.forEach((component: VisualizationComponent) => components.push(component));
-      } else if (parsed?.type) {
-        components.push(parsed as VisualizationComponent);
+      const normalized = normalizePayload(parsed);
+      if (normalized.summary) {
+        summary = normalized.summary;
       }
+      normalized.components.forEach((component) => components.push(component));
     } catch {
       // ignore parse failures
     }
     cleaned = cleaned.replace(raw, '').trim();
   });
 
-  return { text: cleaned, components };
+  return { text: cleaned, summary, components };
 }
 
-export function ChatVisualizations({ components }: { components: VisualizationComponent[] }) {
-  if (!components.length) return null;
+export function ChatVisualizations({
+  components,
+  summary
+}: {
+  components: VisualizationComponent[];
+  summary?: string;
+}) {
+  if (!components.length && !summary) return null;
 
   return (
     <div className={'mt-3 grid gap-3'}>
+      {summary ? (
+        <Card>
+          <CardContent className={'text-xs text-muted-foreground'}>{summary}</CardContent>
+        </Card>
+      ) : null}
       {components.map((component, index) => (
         <VisualizationItem key={`${component.type}-${index}`} component={component} />
       ))}
@@ -224,7 +397,9 @@ function VisualizationItem({ component }: { component: VisualizationComponent })
           ) : null}
           <CardContent className={'space-y-2'}>
             <ProgressBar value={component.value} />
-            <div className={'text-xs text-muted-foreground'}>{component.value}%</div>
+            <div className={'text-xs text-muted-foreground'}>
+              {component.max ? `${component.value}% · ${component.label || ''}`.trim() : `${component.value}%`}
+            </div>
           </CardContent>
         </Card>
       );
