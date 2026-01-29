@@ -493,7 +493,7 @@ export default function AgentChatPage() {
         content: 'Agent response timed out. Please try sending again.',
         timestamp: Date.now()
       });
-    }, 120000);
+    }, 300000);
     setChatInput('');
   };
 
