@@ -43,6 +43,17 @@ type ChatMessage = {
 type SessionRecord = {
   session_id: string;
   status: string;
+  title?: string | null;
+  name?: string | null;
+  summary?: string | null;
+  first_message?: string | null;
+  first_prompt?: string | null;
+  initial_prompt?: string | null;
+  metadata?: {
+    title?: string | null;
+    summary?: string | null;
+    [key: string]: unknown;
+  } | null;
   started_at?: string | null;
   ended_at?: string | null;
   last_activity_at?: string | null;
@@ -570,8 +581,8 @@ export default function AgentChatPage() {
         ) : null}
       </div>
 
-      <div className={'grid gap-6 lg:grid-cols-[280px,1fr]'}>
-        <Card className={'h-fit'}>
+      <div className={'grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]'}>
+        <Card className={'h-fit order-1 lg:order-2'}>
           <CardHeader>
             <CardTitle className={'text-base'}>Session History</CardTitle>
             <CardDescription>Jump between active and recent sessions.</CardDescription>
@@ -586,45 +597,70 @@ export default function AgentChatPage() {
             >
               New Session
             </Button>
-            <div className={'space-y-2'}>
-              {isHistoryLoading ? (
-                <div className={'text-xs text-muted-foreground'}>Loading sessions...</div>
-              ) : sessionHistory.length === 0 ? (
-                <div className={'text-xs text-muted-foreground'}>No sessions yet.</div>
-              ) : (
-                sessionHistory.map((session) => {
-                  const isActive = session.status === 'active';
-                  const timestamp = session.last_activity_at || session.started_at || session.ended_at;
-                  return (
-                    <button
-                      key={session.session_id}
-                      onClick={() => isActive && handleSessionSelect(session.session_id)}
-                      disabled={!isActive}
-                      className={[
-                        'w-full rounded-lg border px-3 py-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-60',
-                        session.session_id === sessionId
-                          ? 'border-primary/50 bg-primary/5'
-                          : 'border-border/60 hover:border-primary/30 hover:bg-muted/40'
-                      ].join(' ')}
-                    >
-                      <div className={'flex items-center justify-between'}>
-                        <span className={'font-medium'}>{session.session_id.slice(0, 10)}</span>
-                        <span className={isActive ? 'text-emerald-500' : 'text-muted-foreground'}>
-                          {isActive ? 'Active' : 'Ended'}
-                        </span>
-                      </div>
-                      <div className={'mt-1 text-[10px] text-muted-foreground'}>
-                        {timestamp ? new Date(timestamp).toLocaleString() : 'No activity'}
-                      </div>
-                    </button>
-                  );
-                })
-              )}
+            <div className={'space-y-3'}>
+              <details
+                className={'rounded-lg border border-border/60 bg-background'}
+                open={sessionHistory.length <= 6 || sessionHistory.length === 0 || isHistoryLoading}
+              >
+                <summary
+                  className={
+                    'flex cursor-pointer items-center justify-between px-3 py-2 text-xs font-medium list-none [&::-webkit-details-marker]:hidden'
+                  }
+                >
+                  <span>Recent sessions</span>
+                  <span className={'text-muted-foreground'}>v</span>
+                </summary>
+                <div className={'space-y-2 px-3 pb-3 max-h-[300px] overflow-auto'}>
+                  {isHistoryLoading ? (
+                    <div className={'text-xs text-muted-foreground'}>Loading sessions...</div>
+                  ) : sessionHistory.length === 0 ? (
+                    <div className={'text-xs text-muted-foreground'}>No sessions yet.</div>
+                  ) : (
+                    sessionHistory.map((session) => {
+                      const isActive = session.status === 'active';
+                      const timestamp = session.last_activity_at || session.started_at || session.ended_at;
+                      const label =
+                        session.title ||
+                        session.name ||
+                        session.summary ||
+                        session.first_message ||
+                        session.first_prompt ||
+                        session.initial_prompt ||
+                        session.metadata?.title ||
+                        session.metadata?.summary ||
+                        session.session_id.slice(0, 8);
+                      return (
+                        <button
+                          key={session.session_id}
+                          onClick={() => isActive && handleSessionSelect(session.session_id)}
+                          disabled={!isActive}
+                          className={[
+                            'w-full rounded-lg border px-3 py-2 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-60',
+                            session.session_id === sessionId
+                              ? 'border-primary/50 bg-primary/5'
+                              : 'border-border/60 hover:border-primary/30 hover:bg-muted/40'
+                          ].join(' ')}
+                        >
+                          <div className={'flex items-center justify-between'}>
+                            <span className={'font-medium'}>{label}</span>
+                            <span className={isActive ? 'text-emerald-500' : 'text-muted-foreground'}>
+                              {isActive ? 'Active' : 'Ended'}
+                            </span>
+                          </div>
+                          <div className={'mt-1 text-[10px] text-muted-foreground'}>
+                            {timestamp ? new Date(timestamp).toLocaleString() : 'No activity'}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </details>
             </div>
           </CardContent>
         </Card>
 
-        <Card className={'overflow-hidden'}>
+        <Card className={'overflow-hidden order-2 lg:order-1'}>
           <CardHeader className={'border-b'}>
             <CardTitle>Agent Chat</CardTitle>
             <CardDescription>
@@ -633,7 +669,7 @@ export default function AgentChatPage() {
           </CardHeader>
           <CardContent className={'space-y-4 pt-4'}>
             <div className={'rounded-2xl border bg-gradient-to-br from-muted/30 via-background to-muted/20'}>
-              <div className={'max-h-[560px] overflow-auto space-y-3 p-5'}>
+              <div className={'max-h-[560px] overflow-auto space-y-3 p-5 rounded-2xl'}>
                 {isLoading ? (
                   <div className={'text-xs text-muted-foreground'}>Starting session...</div>
                 ) : messages.length === 0 ? (
@@ -648,9 +684,9 @@ export default function AgentChatPage() {
                         className={[
                           'max-w-[82%] rounded-2xl px-4 py-2 text-sm shadow-sm',
                           message.role === 'user'
-                            ? 'bg-primary text-primary-foreground'
+                            ? 'bg-primary text-primary-foreground rounded-br-md'
                             : message.role === 'assistant'
-                              ? 'bg-background border border-border/70'
+                              ? 'bg-background border border-border/70 rounded-bl-md'
                               : 'bg-muted text-muted-foreground border border-border/60'
                         ].join(' ')}
                       >
