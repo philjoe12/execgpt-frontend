@@ -132,10 +132,13 @@ export function ExecgptSignUpForm({
         isWaitlistFlow && waitlistSmsEnabled && Boolean(phone);
 
       const postSignup = async (includeSms: boolean) => {
+        // Pass the frontend host so the backend can resolve the correct tenant
+        const frontendHost = typeof window !== 'undefined' ? window.location.host : '';
         const response = await fetch(`${apiBase}/api/v1/auth/${endpoint}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            ...(frontendHost ? { 'X-Frontend-Host': frontendHost } : {}),
           },
           body: JSON.stringify(
             inviteToken
@@ -144,6 +147,7 @@ export function ExecgptSignUpForm({
                 ? {
                   email,
                   username,
+                  host: frontendHost,
                   ...(organizationSlug ? { organizationSlug } : {}),
                   ...(includeSms
                     ? {
@@ -156,6 +160,7 @@ export function ExecgptSignUpForm({
                   email,
                   username,
                   password,
+                  host: frontendHost,
                   ...(organizationSlug ? { organizationSlug } : {}),
                 },
           ),
