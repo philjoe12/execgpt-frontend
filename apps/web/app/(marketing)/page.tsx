@@ -174,7 +174,7 @@ async function Home() {
   const secondaryLeadHref = lead.secondaryCtaHref || DEFAULT_CONTENT.lead?.secondaryCtaHref;
 
   return (
-    <div className={'mt-16 flex flex-col space-y-24 py-14'}>
+    <div className={'mt-24 flex flex-col space-y-24 py-14'}>
       {/* Hero Section with 3-Step Process + Animated Background */}
       <div className="relative overflow-hidden">
         <AnimatedBackground />
