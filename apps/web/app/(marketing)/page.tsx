@@ -16,6 +16,8 @@ import { withI18n } from '~/lib/i18n/with-i18n';
 import { fetchMarketingContent } from '~/lib/strapi/fetch-marketing-content';
 import { getPublicTenantContext } from '~/lib/tenant/get-public-tenant-context';
 
+import { AnimatedBackground } from './_components/animated-background';
+
 type MarketingContent = {
   hero?: {
     pill?: string;
@@ -172,48 +174,51 @@ async function Home() {
   const secondaryLeadHref = lead.secondaryCtaHref || DEFAULT_CONTENT.lead?.secondaryCtaHref;
 
   return (
-    <div className={'mt-4 flex flex-col space-y-24 py-14'}>
-      {/* Hero Section with 3-Step Process */}
-      <div className={'container mx-auto'}>
-        <Hero
-          pill={
-            <Pill label={'New'}>
-              <span>{hero.pill}</span>
-            </Pill>
-          }
-          title={
-            <>
-              <span>{hero.title}</span>
-              <span className="text-primary">{hero.highlight}</span>
-            </>
-          }
-          subtitle={
-            <span>
-              {hero.subtitle}
-            </span>
-          }
-          cta={
-            <CtaButton size="lg">
-              <Link href={hero.ctaHref || '/auth/sign-up'}>
-                <span className={'flex items-center space-x-2'}>
-                  <span>{hero.ctaLabel || 'Get Started'}</span>
-                  <ArrowRightIcon className={'h-5 w-5'} />
-                </span>
-              </Link>
-            </CtaButton>
-          }
-        />
+    <div className={'mt-16 flex flex-col space-y-24 py-14'}>
+      {/* Hero Section with 3-Step Process + Animated Background */}
+      <div className="relative overflow-hidden">
+        <AnimatedBackground />
+        <div className={'container mx-auto relative z-10'}>
+          <Hero
+            pill={
+              <Pill label={'New'}>
+                <span>{hero.pill}</span>
+              </Pill>
+            }
+            title={
+              <>
+                <span>{hero.title}</span>
+                <span className="text-primary">{hero.highlight}</span>
+              </>
+            }
+            subtitle={
+              <span>
+                {hero.subtitle}
+              </span>
+            }
+            cta={
+              <CtaButton size="lg">
+                <Link href={hero.ctaHref || '/auth/sign-up'}>
+                  <span className={'flex items-center space-x-2'}>
+                    <span>{hero.ctaLabel || 'Get Started'}</span>
+                    <ArrowRightIcon className={'h-5 w-5'} />
+                  </span>
+                </Link>
+              </CtaButton>
+            }
+          />
 
-        {/* 3-Step Process */}
-        <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
-          {steps.map((step, index) => (
-            <ProcessStep
-              key={`${step.title || index}`}
-              number={step.number || `${index + 1}`}
-              title={step.title || ''}
-              description={step.description || ''}
-            />
-          ))}
+          {/* 3-Step Process */}
+          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8">
+            {steps.map((step, index) => (
+              <ProcessStep
+                key={`${step.title || index}`}
+                number={step.number || `${index + 1}`}
+                title={step.title || ''}
+                description={step.description || ''}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
