@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -26,10 +27,10 @@ export default function GovernedAgentsArticle() {
     <main className="bg-stone-50 px-6 py-16 text-stone-950">
       <article className="mx-auto max-w-4xl">
         <header className="rounded-3xl border border-stone-200 bg-white p-8 sm:p-12">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+          <p className="text-xs font-semibold tracking-[0.24em] text-sky-700 uppercase">
             BlueBear · Production guide
           </p>
-          <h1 className="mt-5 text-4xl font-semibold leading-tight tracking-tight sm:text-6xl">
+          <h1 className="mt-5 text-4xl leading-tight font-semibold tracking-tight sm:text-6xl">
             Governed AI Agents: A Practical Path from Pilot to Production
           </h1>
           <p className="mt-6 max-w-3xl text-xl leading-8 text-stone-600">

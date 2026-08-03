@@ -32,14 +32,14 @@ const capabilities = [
 export function BluebearHome() {
   return (
     <div className="bg-slate-950 text-slate-100">
-      <section className="relative overflow-hidden px-6 pb-24 pt-20">
+      <section className="relative overflow-hidden px-6 pt-20 pb-24">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(14,165,233,0.18),transparent_35%)]" />
         <div className="relative mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
           <div>
-            <p className="inline-flex rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-sky-200">
+            <p className="inline-flex rounded-full border border-sky-400/40 bg-sky-400/10 px-4 py-2 text-xs font-semibold tracking-[0.28em] text-sky-200 uppercase">
               Agent deployment plane
             </p>
-            <h1 className="mt-8 text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="mt-8 text-5xl leading-[1.05] font-semibold tracking-tight sm:text-6xl">
               Deploy AI agents with real infrastructure, not scripts.
             </h1>
             <p className="mt-7 max-w-xl text-lg leading-8 text-slate-300">
@@ -64,7 +64,7 @@ export function BluebearHome() {
           </div>
 
           <figure className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900/80 p-4 shadow-2xl">
-            <figcaption className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+            <figcaption className="mb-3 text-xs font-semibold tracking-[0.2em] text-slate-400 uppercase">
               Live product · integration catalog
             </figcaption>
             <Image
@@ -81,7 +81,7 @@ export function BluebearHome() {
 
       <section className="border-y border-slate-800 bg-slate-900/50 px-6 py-20">
         <div className="mx-auto max-w-6xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
+          <p className="text-xs font-semibold tracking-[0.28em] text-sky-300 uppercase">
             How BlueBear works
           </p>
           <h2 className="mt-4 max-w-3xl text-4xl font-semibold tracking-tight">
@@ -105,7 +105,7 @@ export function BluebearHome() {
       <section className="px-6 py-24">
         <div className="mx-auto max-w-6xl">
           <div className="max-w-3xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-300">
+            <p className="text-xs font-semibold tracking-[0.28em] text-sky-300 uppercase">
               Product proof
             </p>
             <h2 className="mt-4 text-4xl font-semibold tracking-tight">
