@@ -1,3 +1,4 @@
+
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -17,6 +18,7 @@ import { fetchMarketingContent } from '~/lib/strapi/fetch-marketing-content';
 import { getPublicTenantContext } from '~/lib/tenant/get-public-tenant-context';
 
 import { AnimatedBackground } from './_components/animated-background';
+import { BluebearHome } from './_components/bluebear-home';
 
 type MarketingContent = {
   hero?: {
@@ -153,9 +155,12 @@ function iconForFeature(icon?: string) {
       return <Zap className="w-12 h-12" />;
   }
 }
-
 async function Home() {
   const tenantContext = await getPublicTenantContext();
+  if (tenantContext?.tenant_slug.toLowerCase().startsWith('bluebear')) {
+    return <BluebearHome />;
+  }
+
   const cmsContent = await fetchMarketingContent<MarketingContent>({
     slug: 'home',
     tenantSlug: tenantContext?.tenant_slug,
