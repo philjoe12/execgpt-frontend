@@ -1,4 +1,5 @@
 
+
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -322,7 +323,7 @@ async function Home() {
       <div className={'container mx-auto'}>
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">The Results They Need</h2>
-          <p className="text-muted-foreground">Yes, that's right. They want that.</p>
+          <p className="text-muted-foreground">Yes, that&apos;s right. They want that.</p>
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -381,7 +382,6 @@ async function Home() {
     </div>
   );
 }
-
 export default withI18n(Home);
 
 function ProcessStep({ number, title, description }: { number: string; title: string; description: string }) {
@@ -429,7 +429,7 @@ function ComparisonCard({ title, items, variant }: { title: string; items: strin
 function TestimonialCard({ quote, author, role }: { quote: string; author: string; role: string }) {
   return (
     <div className="bg-muted/50 rounded-lg p-6">
-      <p className="italic mb-4">"{quote}"</p>
+      <p className="italic mb-4">&ldquo;{quote}&rdquo;</p>
       <div>
         <div className="font-semibold">{author}</div>
         <div className="text-sm text-muted-foreground">{role}</div>
